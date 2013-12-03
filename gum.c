@@ -65,6 +65,22 @@ JSValue JS_MUL_SWITCH (void **op_cache_ptr, JSValue a, JSValue b) {
 	return ((jsvalue_op_ptr) *op_cache_ptr)(op_cache_ptr, a, b);
 }
 
+JS_DIV_VARIANT(DOUBLE_DOUBLE, a.tag != b.tag, JS_NUMBER(a.number / b.number));
+JSValue JS_DIV_SWITCH (void **op_cache_ptr, JSValue a, JSValue b) {
+	if (a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG) {
+		*op_cache_ptr = &JS_DIV_DOUBLE_DOUBLE;
+	}
+	return ((jsvalue_op_ptr) *op_cache_ptr)(op_cache_ptr, a, b);
+}
+
+JS_MOD_VARIANT(DOUBLE_DOUBLE, a.tag != b.tag, JS_NUMBER(fmod(a.number, b.number)));
+JSValue JS_MOD_SWITCH (void **op_cache_ptr, JSValue a, JSValue b) {
+	if (a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG) {
+		*op_cache_ptr = &JS_MOD_DOUBLE_DOUBLE;
+	}
+	return ((jsvalue_op_ptr) *op_cache_ptr)(op_cache_ptr, a, b);
+}
+
 /** 
  * Globals
  */

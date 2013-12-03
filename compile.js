@@ -2,6 +2,12 @@ var fs = require('fs');
 
 var falafel = require('falafel');
 
+function swapArgs (node) {
+	var left = node.left;
+	node.left = node.right;
+	node.right = left;
+}
+
 function translate (src) {
 	return falafel(String(src), function (node) {
 		switch (node.type) {
@@ -18,13 +24,31 @@ function translate (src) {
 					case '-': prefix = 'JS_SUB('; suffix = ')'; break;
 					case '*': prefix = 'JS_MUL('; suffix = ')'; break;
 					case '/': prefix = 'JS_DIV('; suffix = ')'; break;
+					case '%': prefix = 'JS_MOD('; suffix = ')'; break;
 					case '==': prefix = 'JS_BOOL(JS_EQ('; suffix = '))'; break;
+					case '!=': prefix = 'JS_BOOL(!JS_EQ('; suffix = '))'; break;
+					case '<': prefix = 'JS_BOOL(JS_LT('; suffix = '))'; break;
+					case '<=': prefix = 'JS_BOOL(!JS_LT('; suffix = '))'; swapArgs(node); break;
+					case '>': prefix = 'JS_BOOL(JS_LT('; suffix = '))'; swapArgs(node); break;
+					case '>=': prefix = 'JS_BOOL(!JS_LT('; suffix = '))'; break;
 					case '||': prefix = 'JS_BOOL(JS_OR('; suffix = '))'; break;
+					default: console.error('Unknown operator conversion:', node.operator);
 				}
 				node.update(prefix + node.left.source() + middle + node.right.source() + suffix)
 				break;
+			case 'AssignmentExpression':
+				if (node.operator != '=') {
+					node.update(node.left.source() + '.number ' + node.operator + ' ' + node.right.source() + '.number');
+				}
+				break;
+			case 'UpdateExpression':
+				node.update(node.argument.source() + '.number' + node.operator);
+				break;
 			case 'IfStatement':
-				node.update('if (' + node.test.source() + '.boolean) ' + node.consequent.source());
+				node.update('if (' + node.test.source() + '.boolean) ' + node.consequent.source() + (node.alternate ? ' else ' + node.alternate.source() : ''));
+				break;
+			case 'ForStatement':
+				node.update(node.init.source() + '; for (; ' + node.test.source() + '.boolean; ' + node.update.source() + ') ' + node.body.source());
 				break;
 			case 'FunctionDeclaration':
 				node.update('JS_DEFN(' + node.id.source() + ') {' + 

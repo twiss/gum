@@ -148,6 +148,20 @@ JSValue JS_MUL_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
 JSValue JS_MUL_DOUBLE_DOUBLE(void **, JSValue, JSValue);
 #define JS_MUL(A, B) JSValue_OP(JS_MUL_DOUBLE_DOUBLE, A, B)
 
+JSValue JS_DIV_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
+#define JS_DIV_VARIANT(NAME, CHECK, RET) JSValue JS_DIV_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
+		return (CHECK) ? JS_DIV_SWITCH(op_cache_ptr, a, b) : RET; \
+	}
+JSValue JS_DIV_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+#define JS_DIV(A, B) JSValue_OP(JS_DIV_DOUBLE_DOUBLE, A, B)
+
+JSValue JS_MOD_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
+#define JS_MOD_VARIANT(NAME, CHECK, RET) JSValue JS_MOD_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
+		return (CHECK) ? JS_MOD_SWITCH(op_cache_ptr, a, b) : RET; \
+	}
+JSValue JS_MOD_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+#define JS_MOD(A, B) JSValue_OP(JS_MOD_DOUBLE_DOUBLE, A, B)
+
 
 // calling conventions
 
