@@ -8,6 +8,14 @@ function swapArgs (node) {
 	node.right = left;
 }
 
+function toBool (node) {
+	var source = node.source();
+	if (/^JS_BOOL\(/.test(source)) {
+		return source.replace(/^JS_BOOL/, '');
+	}
+	return 'JSValue_BOOL(' + node.source() + ')';
+}
+
 function translate (src) {
 	return falafel(String(src), function (node) {
 		switch (node.type) {
@@ -45,10 +53,10 @@ function translate (src) {
 				node.update(node.argument.source() + '.number' + node.operator);
 				break;
 			case 'IfStatement':
-				node.update('if (' + node.test.source() + '.boolean) ' + node.consequent.source() + (node.alternate ? ' else ' + node.alternate.source() : ''));
+				node.update('if (' + toBool(node.test) + ') ' + node.consequent.source() + (node.alternate ? ' else ' + node.alternate.source() : ''));
 				break;
 			case 'ForStatement':
-				node.update(node.init.source() + '; for (; ' + node.test.source() + '.boolean; ' + node.update.source() + ') ' + node.body.source());
+				node.update(node.init.source() + '; for (; ' + toBool(node.test) + '; ' + node.update.source() + ') ' + node.body.source());
 				break;
 			case 'FunctionDeclaration':
 				node.update('JS_DEFN(' + node.id.source() + ') {' + 

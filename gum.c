@@ -10,7 +10,22 @@ char *JSValue_STR (JSValue val) {
 		case JS_BOOL_TAG: return HPRINTF("%s", val.boolean ? "true" : "false");
 		case JS_OBJECT_TAG: return HPRINTF("[object Object]");
 		case JS_FUNCTION_TAG: return HPRINTF("[function]");
+		case JS_NULL_TAG: return "null";
+		case JS_UNDEFINED_TAG: return "undefined";
 		default: return "null";
+	}
+}
+
+bool JSValue_BOOL (JSValue val) {
+	switch (val.tag) {
+		case JS_NUMBER_TAG: return val.number != 0;
+		case JS_STRING_TAG: return strlen(val.string);
+		case JS_BOOL_TAG: return val.boolean;
+		case JS_OBJECT_TAG: return true;
+		case JS_FUNCTION_TAG: return true;
+		case JS_NULL_TAG: return false;
+		case JS_UNDEFINED_TAG: return false;
+		default: return true;
 	}
 }
 
