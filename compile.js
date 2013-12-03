@@ -22,6 +22,7 @@ function translate (src) {
 			case 'Literal':
 				switch (typeof node.value) {
 					case 'number': node.update('JS_NUMBER(' + node.value + ')'); break;
+					case 'string': node.update('JS_STRING(' + JSON.stringify(node.value) + ')'); break;
 				}
 				break;
 			case 'BinaryExpression':

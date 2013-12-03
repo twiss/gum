@@ -53,13 +53,16 @@ bool JS_OR_SWITCH (void **op_cache_ptr, JSValue a, JSValue b) {
 	return ((js_op_ptr) *op_cache_ptr)(op_cache_ptr, a, b);
 }
 
-JS_ADD_VARIANT(DOUBLE_DOUBLE, a.tag != b.tag, JS_NUMBER(a.number + b.number));
+JS_ADD_VARIANT(DOUBLE_DOUBLE, a.tag != b.tag || a.tag != JS_NUMBER_TAG, JS_NUMBER(a.number + b.number));
 JS_ADD_VARIANT(DOUBLE_STRING, a.tag != JS_NUMBER_TAG || b.tag != JS_STRING_TAG, JS_STRING(HPRINTF("%f%s", a.number, b.string)));
+JS_ADD_VARIANT(STRING_STRING, a.tag != JS_STRING_TAG || b.tag != JS_STRING_TAG, JS_STRING(HPRINTF("%s%s", a.string, b.string)));
 JSValue JS_ADD_SWITCH (void **op_cache_ptr, JSValue a, JSValue b) {
 	if (a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG) {
 		*op_cache_ptr = &JS_ADD_DOUBLE_DOUBLE;
 	} else if (a.tag == JS_NUMBER_TAG && b.tag == JS_STRING_TAG) {
 		*op_cache_ptr = &JS_ADD_DOUBLE_STRING;
+	} else if (a.tag == JS_STRING_TAG && b.tag == JS_STRING_TAG) {
+		*op_cache_ptr = &JS_ADD_STRING_STRING;
 	}
 	return ((jsvalue_op_ptr) *op_cache_ptr)(op_cache_ptr, a, b);
 }
