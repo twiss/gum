@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <math.h>
 
 #include "hashmap.h"
 #include "array.h"

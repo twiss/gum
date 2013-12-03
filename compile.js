@@ -10,10 +10,18 @@ function swapArgs (node) {
 
 function toBool (node) {
 	var source = node.source();
-	if (/^JS_BOOL\(/.test(source)) {
+	if (/^JS_BOOL/.test(source)) {
 		return source.replace(/^JS_BOOL/, '');
 	}
 	return 'JSValue_BOOL(' + node.source() + ')';
+}
+
+function toNumber (node) {
+	var source = node.source();
+	if (/^JS_NUMBER/.test(source)) {
+		return source.replace(/^JS_NUMBER/, '');
+	}
+	return 'JSValue_NUMBER(' + node.source() + ')';
 }
 
 function translate (src) {
@@ -47,7 +55,7 @@ function translate (src) {
 				break;
 			case 'AssignmentExpression':
 				if (node.operator != '=') {
-					node.update(node.left.source() + '.number ' + node.operator + ' ' + node.right.source() + '.number');
+					node.update(node.left.source() + '.number ' + node.operator + ' ' + toNumber(node.right));
 				}
 				break;
 			case 'UpdateExpression':

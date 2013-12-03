@@ -16,6 +16,14 @@ char *JSValue_STR (JSValue val) {
 	}
 }
 
+double JSValue_NUMBER (JSValue val) {
+	switch (val.tag) {
+		case JS_NUMBER_TAG: return val.number;
+		case JS_BOOL_TAG: return val.boolean ? 1 : 0;
+		default: return NAN;
+	}
+}
+
 bool JSValue_BOOL (JSValue val) {
 	switch (val.tag) {
 		case JS_NUMBER_TAG: return val.number != 0;
