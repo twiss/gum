@@ -29,8 +29,8 @@ typedef struct JSValue_struct {
 	};
 } JSValue;
 
-typedef bool (*js_op_ptr)(void **, JSValue, JSValue);
-typedef JSValue (*jsvalue_op_ptr)(void **, JSValue, JSValue);
+typedef bool (*js_op_ptr)(JSValue, JSValue);
+typedef JSValue (*jsvalue_op_ptr)(JSValue, JSValue);
 typedef JSValue (*js_func)(JSValue, ...);
 
 #endif
@@ -92,31 +92,28 @@ const JSValue JS_NULL;
 
 #define JS_OP(THEOP, X, Y) ({ \
 		static js_op_ptr PTR = &THEOP; \
-		(*PTR)((void **) &PTR, X, Y); \
+		(*PTR)(X, Y); \
 	})
 
 // operator <
-bool JS_LT_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_LT_VARIANT(NAME, CHECK, RET) bool JS_LT_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_LT_SWITCH(op_cache_ptr, a, b) : (RET) ? true : false; \
+#define JS_LT_VARIANT(NAME, CHECK, VALUE, OTHERWISE) bool JS_LT_ ## NAME (JSValue a, JSValue b) {\
+		return (CHECK ? VALUE : OTHERWISE) ? true : false; \
 	}
-bool JS_LT_NUMBER_NUMBER(void **, JSValue, JSValue);
+bool JS_LT_NUMBER_NUMBER(JSValue, JSValue);
 #define JS_LT(A, B) JS_OP(JS_LT_NUMBER_NUMBER, A, B)
 
 // operator ==
-bool JS_EQ_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_EQ_VARIANT(NAME, CHECK, RET) bool JS_EQ_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_EQ_SWITCH(op_cache_ptr, a, b) : (RET) ? true : false; \
+#define JS_EQ_VARIANT(NAME, CHECK, VALUE, OTHERWISE) bool JS_EQ_ ## NAME (JSValue a, JSValue b) {\
+		return (CHECK ? VALUE : OTHERWISE) ? true : false; \
 	}
-bool JS_EQ_NUMBER_NUMBER(void **, JSValue, JSValue);
+bool JS_EQ_NUMBER_NUMBER(JSValue, JSValue);
 #define JS_EQ(A, B) JS_OP(JS_EQ_NUMBER_NUMBER, A, B)
 
 // operator ||
-bool JS_OR_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_OR_VARIANT(NAME, CHECK, RET) bool JS_OR_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_OR_SWITCH(op_cache_ptr, a, b) : (RET) ? true : false; \
+#define JS_OR_VARIANT(NAME, CHECK, VALUE, OTHERWISE) bool JS_OR_ ## NAME (JSValue a, JSValue b) {\
+		return (CHECK ? VALUE : OTHERWISE) ? true : false; \
 	}
-bool JS_OR_BOOL_BOOL(void **, JSValue, JSValue);
+bool JS_OR_BOOL_BOOL(JSValue, JSValue);
 #define JS_OR(A, B) JS_OP(JS_OR_BOOL_BOOL, A, B)
 
 
@@ -124,43 +121,39 @@ bool JS_OR_BOOL_BOOL(void **, JSValue, JSValue);
 
 #define JSValue_OP(THEOP, X, Y) ({ \
 		static jsvalue_op_ptr PTR = &THEOP; \
-		(*PTR)((void **) &PTR, X, Y); \
+		(*PTR)(X, Y); \
 	})
 
-JSValue JS_ADD_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_ADD_VARIANT(NAME, CHECK, RET) JSValue JS_ADD_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_ADD_SWITCH(op_cache_ptr, a, b) : RET; \
+#define JS_ADD_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_ADD_ ## NAME (JSValue a, JSValue b) {\
+		return CHECK ? VALUE : OTHERWISE; \
 	}
-JSValue JS_ADD_DOUBLE_DOUBLE(void **, JSValue, JSValue);
-JSValue JS_ADD_DOUBLE_STRING(void **, JSValue, JSValue);
+JSValue JS_ADD_DOUBLE_DOUBLE(JSValue, JSValue);
+JSValue JS_ADD_DOUBLE_STRING(JSValue, JSValue);
+JSValue JS_ADD_STRING_STRING(JSValue, JSValue);
 #define JS_ADD(A, B) JSValue_OP(JS_ADD_DOUBLE_DOUBLE, A, B)
 
-JSValue JS_SUB_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_SUB_VARIANT(NAME, CHECK, RET) JSValue JS_SUB_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_SUB_SWITCH(op_cache_ptr, a, b) : RET; \
+#define JS_SUB_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_SUB_ ## NAME (JSValue a, JSValue b) {\
+		return CHECK ? VALUE : OTHERWISE; \
 	}
-JSValue JS_SUB_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+JSValue JS_SUB_DOUBLE_DOUBLE(JSValue, JSValue);
 #define JS_SUB(A, B) JSValue_OP(JS_SUB_DOUBLE_DOUBLE, A, B)
 
-JSValue JS_MUL_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_MUL_VARIANT(NAME, CHECK, RET) JSValue JS_MUL_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_MUL_SWITCH(op_cache_ptr, a, b) : RET; \
+#define JS_MUL_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_MUL_ ## NAME (JSValue a, JSValue b) {\
+		return CHECK ? VALUE : OTHERWISE; \
 	}
-JSValue JS_MUL_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+JSValue JS_MUL_DOUBLE_DOUBLE(JSValue, JSValue);
 #define JS_MUL(A, B) JSValue_OP(JS_MUL_DOUBLE_DOUBLE, A, B)
 
-JSValue JS_DIV_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_DIV_VARIANT(NAME, CHECK, RET) JSValue JS_DIV_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_DIV_SWITCH(op_cache_ptr, a, b) : RET; \
+#define JS_DIV_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_DIV_ ## NAME (JSValue a, JSValue b) {\
+		return CHECK ? VALUE : OTHERWISE; \
 	}
-JSValue JS_DIV_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+JSValue JS_DIV_DOUBLE_DOUBLE(JSValue, JSValue);
 #define JS_DIV(A, B) JSValue_OP(JS_DIV_DOUBLE_DOUBLE, A, B)
 
-JSValue JS_MOD_SWITCH (void **op_cache_ptr, JSValue a, JSValue b);
-#define JS_MOD_VARIANT(NAME, CHECK, RET) JSValue JS_MOD_ ## NAME (void **op_cache_ptr, JSValue a, JSValue b) {\
-		return (CHECK) ? JS_MOD_SWITCH(op_cache_ptr, a, b) : RET; \
+#define JS_MOD_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_MOD_ ## NAME (JSValue a, JSValue b) {\
+		return CHECK ? VALUE : OTHERWISE; \
 	}
-JSValue JS_MOD_DOUBLE_DOUBLE(void **, JSValue, JSValue);
+JSValue JS_MOD_DOUBLE_DOUBLE(JSValue, JSValue);
 #define JS_MOD(A, B) JSValue_OP(JS_MOD_DOUBLE_DOUBLE, A, B)
 
 
