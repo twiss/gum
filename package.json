@@ -5,5 +5,5 @@
   "main": "compile.js",
   "dependencies": {
     "falafel": "~0.1.4"
-  },
+  }
 }
