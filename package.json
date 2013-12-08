@@ -4,6 +4,6 @@
   "description": "JavaScript -> C compiler",
   "main": "compile.js",
   "dependencies": {
-    "falafel": "~0.1.4"
+    "tern": "~0.5.0"
   }
 }

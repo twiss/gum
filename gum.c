@@ -5,6 +5,7 @@ const JSValue JS_NULL = ((JSValue) {JS_NULL_TAG});
 
 char *JSValue_STR (JSValue val) {
 	switch (val.tag) {
+		case JS_INT_TAG: return HPRINTF("%d", val.integer);
 		case JS_NUMBER_TAG: return HPRINTF("%f", val.number);
 		case JS_STRING_TAG: return HPRINTF("%s", val.string);
 		case JS_BOOL_TAG: return HPRINTF("%s", val.boolean ? "true" : "false");
@@ -18,6 +19,7 @@ char *JSValue_STR (JSValue val) {
 
 double JSValue_NUMBER (JSValue val) {
 	switch (val.tag) {
+		case JS_INT_TAG: return (double) val.integer;
 		case JS_NUMBER_TAG: return val.number;
 		case JS_BOOL_TAG: return val.boolean ? 1 : 0;
 		default: return NAN;
@@ -26,6 +28,7 @@ double JSValue_NUMBER (JSValue val) {
 
 bool JSValue_BOOL (JSValue val) {
 	switch (val.tag) {
+		case JS_INT_TAG: return val.integer != 0;
 		case JS_NUMBER_TAG: return val.number != 0;
 		case JS_STRING_TAG: return strlen(val.string);
 		case JS_BOOL_TAG: return val.boolean;
@@ -43,7 +46,9 @@ JS_EQ_VARIANT(NUMBER_NUMBER, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, a
 
 JS_OR_VARIANT(BOOL_BOOL, a.tag == JS_BOOL_TAG && b.tag == JS_BOOL_TAG, a.boolean || b.boolean, JSValue_BOOL(a) || JSValue_BOOL(b));
 
-JS_ADD_VARIANT(DOUBLE_DOUBLE, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, JS_NUMBER(a.number + b.number), JS_ADD_DOUBLE_STRING(a, b));
+JS_ADD_VARIANT(INT_INT, a.tag == JS_INT_TAG && b.tag == JS_INT_TAG, JS_NUMBER(a.integer + b.integer), JS_ADD_DOUBLE_DOUBLE(a, b));
+JS_ADD_VARIANT(DOUBLE_DOUBLE, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, JS_NUMBER(a.number + b.number), JS_ADD_NUMBER_NUMBER(a, b));
+JS_ADD_VARIANT(NUMBER_NUMBER, (a.tag == JS_INT_TAG || a.tag == JS_NUMBER_TAG) && (b.tag == JS_INT_TAG || b.tag == JS_NUMBER_TAG), JS_NUMBER(JSValue_NUMBER(a) + JSValue_NUMBER(b)), JS_ADD_DOUBLE_STRING(a, b));
 JS_ADD_VARIANT(DOUBLE_STRING, a.tag == JS_NUMBER_TAG && b.tag == JS_STRING_TAG, JS_STRING(HPRINTF("%f%s", a.number, b.string)), JS_ADD_STRING_STRING(a, b));
 JS_ADD_VARIANT(STRING_STRING, a.tag == JS_STRING_TAG && b.tag == JS_STRING_TAG, JS_STRING(HPRINTF("%s%s", a.string, b.string)), JS_STRING(HPRINTF("%s%s", JSValue_STR(a), JSValue_STR(b))));
 
@@ -53,19 +58,20 @@ JS_MUL_VARIANT(DOUBLE_DOUBLE, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, 
 
 JS_DIV_VARIANT(DOUBLE_DOUBLE, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, JS_NUMBER(a.number / b.number), JS_NUMBER(JSValue_NUMBER(a) / JSValue_NUMBER(b)));
 
+JS_MOD_VARIANT(INT_INT, a.tag == JS_INT_TAG && b.tag == JS_INT_TAG, JS_NUMBER(a.integer % b.integer), JS_MOD_DOUBLE_DOUBLE(a, b));
 JS_MOD_VARIANT(DOUBLE_DOUBLE, a.tag == JS_NUMBER_TAG && b.tag == JS_NUMBER_TAG, JS_NUMBER(fmod(a.number, b.number)), JS_NUMBER(fmod(JSValue_NUMBER(a), JSValue_NUMBER(b))));
 
 /** 
  * Globals
  */
 
-JS_DEFN(console_log) {
-	VARGS(VARG(str));
-	printf("%s\n", JSValue_STR(str));
-	return JS_NULL;
-}
+// JS_DEFN(console_log) {
+// 	VARGS(VARG(str));
+// 	printf("%s\n", JSValue_STR(str));
+// 	return JS_NULL;
+// }
 
-JSValue console;
+// JSValue console;
 JSValue _object_prototype;
 
 void initialze_globals() {
@@ -73,12 +79,12 @@ void initialze_globals() {
 	_object_prototype = ((JSValue) {JS_OBJECT_TAG, {.object = hashmap_new()}});
 
 	// Setup console.
-	console = JS_OBJECT();
-	JS_SET_PROP(console, "log", console_log);
+	// console = JS_OBJECT();
+	// JS_SET_PROP(console, "log", console_log);
 }
 
 void destroy_globals() {
-	JS_OBJECT_FREE(console);
+	//JS_OBJECT_FREE(console);
 }
 
 JSValue module_0;

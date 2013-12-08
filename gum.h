@@ -21,6 +21,7 @@ typedef struct JSValue_struct {
 	char tag;
 	union {
 		char boolean;
+		long integer;
 		double number;
 		char *string;
 		void *function;
@@ -69,7 +70,9 @@ typedef JSValue (*js_func)(JSValue, ...);
 #define JS_FUNCTION_TAG 6
 #define JS_OBJECT_TAG 7
 #define JS_ARRAY_TAG 8
+#define JS_INT_TAG 8
 
+#define JS_INT(X) ((JSValue) {JS_INT_TAG, {.integer = X}})
 #define JS_NUMBER(X) ((JSValue) {JS_NUMBER_TAG, {.number = X}})
 #define JS_STRING(X) ((JSValue) {JS_STRING_TAG, {.string = X}})
 #define JS_BOOL(X) ((JSValue) {JS_BOOL_TAG, {.boolean = X}})
@@ -127,10 +130,12 @@ bool JS_OR_BOOL_BOOL(JSValue, JSValue);
 #define JS_ADD_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_ADD_ ## NAME (JSValue a, JSValue b) {\
 		return CHECK ? VALUE : OTHERWISE; \
 	}
+JSValue JS_ADD_INT_INT(JSValue, JSValue);
 JSValue JS_ADD_DOUBLE_DOUBLE(JSValue, JSValue);
+JSValue JS_ADD_NUMBER_NUMBER(JSValue, JSValue);
 JSValue JS_ADD_DOUBLE_STRING(JSValue, JSValue);
 JSValue JS_ADD_STRING_STRING(JSValue, JSValue);
-#define JS_ADD(A, B) JSValue_OP(JS_ADD_DOUBLE_DOUBLE, A, B)
+#define JS_ADD(A, B) JSValue_OP(JS_ADD_INT_INT, A, B)
 
 #define JS_SUB_VARIANT(NAME, CHECK, VALUE, OTHERWISE) JSValue JS_SUB_ ## NAME (JSValue a, JSValue b) {\
 		return CHECK ? VALUE : OTHERWISE; \
@@ -154,7 +159,8 @@ JSValue JS_DIV_DOUBLE_DOUBLE(JSValue, JSValue);
 		return CHECK ? VALUE : OTHERWISE; \
 	}
 JSValue JS_MOD_DOUBLE_DOUBLE(JSValue, JSValue);
-#define JS_MOD(A, B) JSValue_OP(JS_MOD_DOUBLE_DOUBLE, A, B)
+JSValue JS_MOD_INT_INT(JSValue, JSValue);
+#define JS_MOD(A, B) JSValue_OP(JS_MOD_INT_INT, A, B)
 
 
 // calling conventions
@@ -184,6 +190,6 @@ JSValue JS_MOD_DOUBLE_DOUBLE(JSValue, JSValue);
 	JSValue _js_fn_ ## NAME (JSValue this, ...)
 
 char *JS_VAL_STR (JSValue val);
-JSValue console;
+//JSValue console;
 JSValue module_0;
 JSValue _object_prototype;
