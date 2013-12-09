@@ -118,6 +118,12 @@ function writeCast(node, toType, state, cont) {
 	switch(toType) {
 		case context.str: writeToString(node, state, cont); break;
 		case context.num: writeToValue(node, state, cont); break;
+		case context.bool:
+			switch(fromType) {
+				case context.bool: cont(node, state); break;
+				default: throw new TypeError('Unknown type: ' + fromType);
+			}
+			break;
 		case null: case undefined:
 			switch(fromType) {
 				case context.str: write('JSSTRING(', state); 
@@ -204,7 +210,8 @@ walk.recursive(ast, state, {
 	FunctionDeclaration: function(node, state, cont) {
 		// forward declaration
 		var newstate = {output: [], scope: node.body.scope};
-		writeCType(typeOf(node.id, newstate), newstate, function() {
+		var rettype = node.body.scope.fnType.retval.getType(false);
+		writeCType(rettype, newstate, function() {
 			cont(node.id, newstate);
 		});
 		write('(', newstate);
@@ -218,7 +225,7 @@ walk.recursive(ast, state, {
 		
 		// declaration
 		var newstate = {output: [], scope: node.body.scope};
-		writeCType(typeOf(node.id, newstate), newstate, function() {
+		writeCType(rettype, newstate, function() {
 			cont(node.id, newstate);
 		});
 		write('(', newstate);
@@ -406,6 +413,11 @@ walk.recursive(ast, state, {
 			write(node.operator, state);
 			cont(node.right, state);
 		}
+	},
+	LogicalExpression: function(node, state, cont) {
+		writeCast(node.left, context.bool, state, cont);
+		write(node.operator, state);
+		writeCast(node.right, context.bool, state, cont);
 	},
 	UnaryExpression: function(node, state, cont) {
 		write(node.operator, state);
