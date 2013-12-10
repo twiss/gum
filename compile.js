@@ -12,6 +12,7 @@ infer.withContext(context, function() {
 	def.load(JSON.parse(fs.readFileSync('cstdlib.json')), context.topScope);
 });
 
+console.error(process.argv);
 var source = fs.readFileSync('js.js') + fs.readFileSync(process.argv[2]);
 
 var ast = acorn.parse(source, {locations: true});
@@ -77,13 +78,13 @@ function writeCType(type, state, writeid) {
 		writeid();
 		return;
 	}
-	/*if(type.proto == context.protos.Array) {
+	if(type.proto == context.protos.Array) {
 		writeCType(type.props['<i>'].getType(false), state, function() {
-			write('*', state);
 			writeid();
+			write('[]', state);
 		});
 		return;
-	}*/
+	}
 	if(type.proto == context.protos.Function) {
 		writeCType(type.retval.getType(false), state, function() {
 			write('(*', state);
@@ -121,10 +122,31 @@ function writeCType(type, state, writeid) {
 	writeid();
 }
 
-function writeCast(node, toType, state, cont) {
-	var fromType = typeOf(node, state);
-	if(fromType == toType) {
+function writeCast(node, toType, state, cont, fromType) {
+	var fromType = fromType !== undefined ? fromType : typeOf(node, state);
+	if(fromType == toType || fromType && toType && fromType.proto == toType.proto) {
 		return cont(node, state);
+	}
+	if(toType && toType.proto == context.protos.Function) {
+		switch(fromType) {
+			case null: case undefined: write('JSValue_FUNCTION(', state); cont(node, state); write(')', state); break;
+			default: throw new TypeError('Unknown type: ' + fromType);
+		}
+		return;
+	}
+	if(toType && toType.proto == context.protos.Array) {
+		switch(fromType) {
+			case null: case undefined: write('JSValue_ARRAY(', state); cont(node, state); write(')', state); break;
+			default: throw new TypeError('Unknown type: ' + fromType);
+		}
+		return;
+	}
+	if(toType && toType.proto == context.protos.Object) {
+		switch(fromType) {
+			case null: case undefined: write('JSValue_OBJECT(', state); cont(node, state); write(')', state); break;
+			default: throw new TypeError('Unknown type: ' + fromType);
+		}
+		return;
 	}
 	switch(toType) {
 		case context.str: writeToString(node, state, cont); break;
@@ -136,6 +158,21 @@ function writeCast(node, toType, state, cont) {
 			}
 			break;
 		case null: case undefined:
+			if(fromType && fromType.proto == context.protos.Function) {
+				write('JS_FUNCTION(', state);
+				cont(node, state);
+				write(')', state);
+				return;
+			}
+			if(fromType && fromType.proto == context.protos.Array) {
+				write('JS_ARRAY(', state);
+				cont(node, state);
+				write(')', state);
+				return;
+			}
+			if(fromType && fromType.proto == context.protos.Object) {
+				return cont(node, state);
+			}
 			switch(fromType) {
 				case context.str: write('JSSTRING(', state); break;
 				case null: case undefined: cont(node, state); break;
@@ -290,6 +327,16 @@ walk.recursive(ast, state, {
 			cont(prop.key, state);
 			write('=', state);
 			cont(prop.value, state);
+			write(',', state);
+		});
+		write('}', state);
+	},
+	ArrayExpression: function(node, state, cont) {
+		var elmType = typeOf(node, state).props['<i>'].getType(false);
+		console.error(node, elmType);
+		write('{', state);
+		node.elements.forEach(function(elm) {
+			writeCast(elm, elmType, state, cont);
 			write(',', state);
 		});
 		write('}', state);
