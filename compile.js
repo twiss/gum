@@ -205,19 +205,23 @@ walk.recursive(ast, state, {
 	VariableDeclaration: function(node, state, cont) {
 		if(state.scope == context.topScope) var newstate = {output: [], scope: state.scope};
 		node.declarations.forEach(function(node, i) {
-			cont(node, newstate || state);
+			writeCType(typeOf(node.id, state), newstate || state, function() {
+				cont(node.id, newstate || state);
+			});
+			if(node.init) {
+				if(newstate && typeOf(node.id, state).proto == context.protos.Object) {
+					write('=', newstate);
+					writeCast(node.init, typeOf(node.id, state), newstate, cont);
+				} else {
+					if(newstate) cont(node.id, state);
+					write('=', state);
+					writeCast(node.init, typeOf(node.id, state), state, cont); // This is only between native and JSValue and should not change types
+					if(newstate) write(';', state);
+				}
+			}
 			write(';', newstate || state);
 		});
 		if(state.scope == context.topScope) pre(newstate, state);
-	},
-	VariableDeclarator: function(node, state, cont) {
-		writeCType(typeOf(node.id, state), state, function() {
-			cont(node.id, state);
-		});
-		if(node.init) {
-			write('=', state);
-			writeCast(node.init, typeOf(node.id, state), state, cont); // This is only between native and JSValue and should not change types
-		}
 	},
 	FunctionDeclaration: function(node, state, cont) {
 		// forward declaration
