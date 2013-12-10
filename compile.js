@@ -93,6 +93,7 @@ function writeCType(type, state, writeid) {
 		});
 		write('(', state);
 		type.args.forEach(function(arg, i) {
+			if(i) write(',', state);
 			writeCType(arg.getType(false), state, function() {
 				write(type.argNames[i], state);
 			});
