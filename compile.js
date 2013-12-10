@@ -12,7 +12,7 @@ infer.withContext(context, function() {
 	def.load(JSON.parse(fs.readFileSync('cstdlib.json')), context.topScope);
 });
 
-var source = fs.readFileSync('js.js') + fs.readFileSync('source.js');
+var source = fs.readFileSync('js.js') + fs.readFileSync(process.argv[2]);
 
 var ast = acorn.parse(source, {locations: true});
 infer.withContext(context, function() { infer.analyze(ast, 'source'); });
@@ -441,4 +441,4 @@ walk.recursive(ast, state, {
 	}
 }, {});
 
-console.log('#include "gum.h"\n' + format(state));
+console.log('#include "' + require('path').resolve('gum.h') + '"\n' + format(state));
