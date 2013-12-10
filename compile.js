@@ -35,7 +35,7 @@ function typeOf(node, state) {
 	infer.withContext(context, function() {
 		type = infer.expressionType({node: node, state: state.scope});
 		type = type.getType ? type.getType(false) : type;
-		if(type == context.num && node.type == 'Identifier') {
+		if(type == context.num && node.type == 'Identifier' && node.name != 'Infinity' && node.name != 'INFINITY') {
 			var name = node.name;
 			if(!state.scope.fnType || state.scope.fnType.argNames.indexOf(name) == -1) {
 				node.typeOf = context.int;
@@ -44,6 +44,14 @@ function typeOf(node, state) {
 					walk.recursive(state.scope.node, null, {
 						AssignmentExpression: function(node) {
 							if(node.left.name == name && typeOf(node.right, state) != context.int) throw NotAnInt;
+						},
+						VariableDeclaration: function(node, state, cont) {
+							node.declarations.forEach(function(node) {
+								cont(node, state);
+							});
+						},
+						VariableDeclarator: function(node) {
+							if(node.id.name == name && node.init && typeOf(node.init, state) != context.int) throw NotAnInt;
 						},
 						/*CallExpression: function(node) {
 							node.arguments.forEach(function(arg, i) {
@@ -115,6 +123,9 @@ function writeCType(type, state, writeid) {
 
 function writeCast(node, toType, state, cont) {
 	var fromType = typeOf(node, state);
+	if(fromType == toType) {
+		return cont(node, state);
+	}
 	switch(toType) {
 		case context.str: writeToString(node, state, cont); break;
 		case context.num: writeToValue(node, state, cont); break;
@@ -126,7 +137,8 @@ function writeCast(node, toType, state, cont) {
 			break;
 		case null: case undefined:
 			switch(fromType) {
-				case context.str: write('JSSTRING(', state); 
+				case context.str: write('JSSTRING(', state); break;
+				case null: case undefined: cont(node, state); break;
 				default: throw new TypeError('Unknown type: ' + fromType);
 			}
 			break;
@@ -204,7 +216,7 @@ walk.recursive(ast, state, {
 		});
 		if(node.init) {
 			write('=', state);
-			cont(node.init, state);
+			writeCast(node.init, typeOf(node.id, state), state, cont); // This is only between native and JSValue and should not change types
 		}
 	},
 	FunctionDeclaration: function(node, state, cont) {
@@ -285,7 +297,7 @@ walk.recursive(ast, state, {
 	AssignmentExpression: function(node, state, cont) {
 		cont(node.left, state);
 		write(node.operator, state);
-		cont(node.right, state);
+		writeCast(node.right, typeOf(node.left, state), state, cont); // This is only between native and JSValue and should not change types
 	},
 	UpdateExpression: function(node, state, cont) {
 		if(node.prefix) write(node.operator, state);
@@ -304,7 +316,7 @@ walk.recursive(ast, state, {
 		var calleeType = typeOf(node.callee, state);
 		node.arguments.forEach(function(node, i) {
 			if(i) write(',', state);
-			if(calleeType && calleeType.args) writeCast(node, calleeType.args[i].getType(false), state, cont);
+			if(calleeType && calleeType.args && calleeType.args[i]) writeCast(node, calleeType.args[i].getType(false), state, cont);
 			else cont(node, state);
 		});
 		write(')', state);

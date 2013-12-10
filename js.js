@@ -1,3 +1,4 @@
+var Infinity = INFINITY;
 var console = {
 	log: function(arg) {
 		printf("%s\n", arg + '');
