@@ -564,6 +564,11 @@ walk.recursive(ast, state, {
 		write(node.operator, state);
 		writeCast(node.right, context.bool, state, cont);
 	},
+	LogicalExpression: function(node, state, cont) {
+		writeCast(node.left, context.bool, state, cont);
+		write(node.operator, state);
+		writeCast(node.right, context.bool, state, cont);
+	},
 	UnaryExpression: function(node, state, cont) {
 		write(node.operator, state);
 		cont(node.argument, state);
