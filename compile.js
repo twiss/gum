@@ -12,7 +12,6 @@ infer.withContext(context, function() {
 	def.load(JSON.parse(fs.readFileSync('cstdlib.json')), context.topScope);
 });
 
-console.error(process.argv);
 var source = fs.readFileSync('js.js') + fs.readFileSync(process.argv[2]);
 
 var ast = acorn.parse(source, {locations: true});
@@ -72,7 +71,62 @@ function typeOf(node, state) {
 	return node.typeOf = type;
 }
 
-function writeCType(type, state, writeid) {
+function isConstId(node, state) {
+	var NotAConst = {};
+	var namenode = node;
+	var name = node.name;
+	if(state.scope == context.topScope && (name == 'argc' || name == 'argv')) return false;
+	
+	try {
+		walk.simple(state.scope.node, {
+			AssignmentExpression: function(node) {
+				walk.simple(node.left, {
+					Identifier: function(node) {
+						if(node.name == name) throw NotAConst;
+					},
+				});
+			},
+			VariableDeclaration: function(node) {
+				node.declarations.forEach(function(node) {
+					if(node.id.name == name && node.init) {
+						walk.recursive(node.init, null, {
+							MemberExpression: function(node) {
+								throw NotAConst;
+							},
+							Identifier: function(node) {
+								if(!isConstId(node, state)) throw NotAConst;
+							},
+						});
+					}
+				});
+			},
+			UpdateExpression: function(node) {
+				if(node.argument.name == name) throw NotAConst;
+			},
+			CallExpression: function(node) {
+				node.arguments.forEach(function(node, i) {
+					walk.simple(node, {
+						Identifier: function(node) {
+							if(node.name == name) throw NotAConst;
+						},
+					});
+				});
+			},
+		});
+	} catch(e) {
+		if(e == NotAConst) return false;
+		else throw e;
+	}
+	return true;
+}
+
+var structDefs = {};
+function writeCType(type, state, writeid, constant, length) {
+	function writeconst() {
+		if(constant) {
+			write('const', state);
+		}
+	}
 	if(!type) {
 		write('JSValue', state);
 		writeid();
@@ -80,9 +134,16 @@ function writeCType(type, state, writeid) {
 	}
 	if(type.proto == context.protos.Array) {
 		writeCType(type.props['<i>'].getType(false), state, function() {
+			if(!length) {
+				write('*', state);
+			}
 			writeid();
-			write('[]', state);
-		});
+			if(length) {
+				write('[', state);
+				write(length, state);
+				write(']', state);
+			}
+		}, constant);
 		return;
 	}
 	if(type.proto == context.protos.Function) {
@@ -102,15 +163,27 @@ function writeCType(type, state, writeid) {
 		return;
 	}
 	if(type.props) {
-		write('struct {', state);
-		Object.getOwnPropertyNames(type.props).forEach(function(prop) {
-			writeCType(type.props[prop].getType(false), state, function() {
-				write(prop, state);
+		var keys = Object.keys(type.props);
+		var props = JSON.stringify([keys, keys.map(function(prop) {
+			return type.props[prop].getType(false) + '';
+		})]);
+		if(!structDefs[props]) {
+			structDefs[props] = newId('_struct');
+			write('typedef struct {', state);
+			Object.getOwnPropertyNames(type.props).forEach(function(prop) {
+				writeCType(type.props[prop].getType(false), state, function() {
+					write(prop, state);
+				});
+				write(';\n', state);
 			});
-			write(';\n', state);
-		});
-		write('}', state);
+			write('}', state);
+			write(structDefs[props], state);
+			write(';', state);
+		}
+		writeconst();
+		write(structDefs[props], state);
 	} else {
+		writeconst();
 		switch(type) {
 			case context.num: write('double', state); break;
 			case context.int: write('long', state); break;
@@ -175,7 +248,8 @@ function writeCast(node, toType, state, cont, fromType) {
 				return cont(node, state);
 			}
 			switch(fromType) {
-				case context.str: write('JSSTRING(', state); break;
+				case context.str: write('JS_STRING(', state); cont(node, state); write(')', state); break;
+				case context.num: write('JS_NUMBER(', state); cont(node, state); write(')', state); break;
 				case null: case undefined: cont(node, state); break;
 				default: throw new TypeError('Unknown type: ' + fromType);
 			}
@@ -233,7 +307,7 @@ function newId(prefix) {
 
 walk.recursive(ast, state, {
 	Program: function(node, state, cont) {
-		write('int main() {', state);
+		write('int main(int argc, char *argv[]) {', state);
 		node.body.forEach(function(node, i) {
 			cont(node, state);
 		});
@@ -243,21 +317,19 @@ walk.recursive(ast, state, {
 	VariableDeclaration: function(node, state, cont) {
 		if(state.scope == context.topScope) var newstate = {output: [], scope: state.scope};
 		node.declarations.forEach(function(node, i) {
+			var constant = node.init && isConstId(node.id, state);
 			writeCType(typeOf(node.id, state), newstate || state, function() {
 				cont(node.id, newstate || state);
-			});
-			if(node.init) {
-				if(newstate && typeOf(node.id, state).proto == context.protos.Object) {
-					write('=', newstate);
-					writeCast(node.init, typeOf(node.id, state), newstate, cont);
-				} else {
-					if(newstate) cont(node.id, state);
-					write('=', state);
-					writeCast(node.init, typeOf(node.id, state), state, cont); // This is only between native and JSValue and should not change types
-					if(newstate) write(';', state);
-				}
+			}, constant);
+			if(constant) {
+				write('=', newstate || state);
+				writeCast(node.init, typeOf(node.id, state), newstate || state, cont);
 			}
 			write(';', newstate || state);
+			if(node.init && !constant) {
+				cont({left: node.id, right: node.init, operator: '='}, state, 'AssignmentExpression');
+				write(';', state);
+			}
 		});
 		if(state.scope == context.topScope) pre(newstate, state);
 	},
@@ -269,7 +341,8 @@ walk.recursive(ast, state, {
 			cont(node.id, newstate);
 		});
 		write('(', newstate);
-		node.params.forEach(function(node) {
+		node.params.forEach(function(node, i) {
+			if(i) write(',', newstate);
 			writeCType(typeOf(node, newstate), newstate, function() {
 				cont(node, newstate);
 			});
@@ -283,7 +356,8 @@ walk.recursive(ast, state, {
 			cont(node.id, newstate);
 		});
 		write('(', newstate);
-		node.params.forEach(function(node) {
+		node.params.forEach(function(node, i) {
+			if(i) write(',', newstate);
 			writeCType(typeOf(node, newstate), newstate, function() {
 				cont(node, newstate);
 			});
@@ -322,6 +396,9 @@ walk.recursive(ast, state, {
 		write(JSON.stringify(node.value), state);
 	},
 	ObjectExpression: function(node, state, cont) {
+		write('(', state);
+		writeCType(typeOf(node, state), state, function() {});
+		write(')', state);
 		write('{', state);
 		node.properties.forEach(function(prop) {
 			write('.', state);
@@ -333,9 +410,11 @@ walk.recursive(ast, state, {
 		write('}', state);
 	},
 	ArrayExpression: function(node, state, cont) {
-		var elmType = typeOf(node, state).props['<i>'].getType(false);
-		console.error(node, elmType);
+		write('(', state);
+		writeCType(typeOf(node, state), state, function() {}, false, Math.pow(2, Math.ceil(Math.log(node.elements.length) / Math.LN2)));
+		write(')', state);
 		write('{', state);
+		var elmType = typeOf(node, state).props['<i>'].getType(false);
 		node.elements.forEach(function(elm) {
 			writeCast(elm, elmType, state, cont);
 			write(',', state);
@@ -425,6 +504,7 @@ walk.recursive(ast, state, {
 		cont(node.alternate, state);
 	},
 	BinaryExpression: function(node, state, cont) {
+		write('(', state);
 		if(node.operator == '+') {
 			if(typeOf(node.left, state) == context.str || typeOf(node.right, state) == context.str) {
 				if(typeOf(node.left, state) == typeOf(node.right, state)) {
@@ -473,10 +553,11 @@ walk.recursive(ast, state, {
 				write(')', state);
 			}
 		} else {
-			cont(node.left, state);
+			writeCast(node.left, context.num, state, cont);
 			write(node.operator, state);
-			cont(node.right, state);
+			writeCast(node.right, context.num, state, cont);
 		}
+		write(')', state);
 	},
 	LogicalExpression: function(node, state, cont) {
 		writeCast(node.left, context.bool, state, cont);

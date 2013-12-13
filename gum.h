@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <math.h>
+#include <string.h>
 
 #include "hashmap.h"
 #include "array.h"
